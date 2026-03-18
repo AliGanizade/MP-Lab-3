@@ -1,0 +1,62 @@
+uint8_t a = 0; 
+uint8_t b = 1; 
+
+void EEPROM_write(unsigned int uiAddress, unsigned char ucData) {  
+    while(EECR & (1 << EEPE));
+    
+    EEAR = uiAddress;
+    EEDR = ucData;
+    
+    EECR |= (1 << EEMPE);
+    
+    EECR |= (1 << EEPE);
+}
+
+unsigned char EEPROM_read(unsigned int uiAddress) {
+    while(EECR & (1 << EEPE));
+    
+    EEAR = uiAddress;
+    
+    EECR |= (1 << EERE);
+    
+    return EEDR;
+}
+
+void setup() {
+    Serial.begin(9600);
+    pinMode(13, OUTPUT);
+    
+    a = EEPROM_read(0);
+    
+    Serial.print("Last saved value (Manual read): ");
+    Serial.println(a);
+}
+
+void loop() {
+    if (Serial.available() > 0) {
+        int input = Serial.parseInt();
+        if (input != 0 || Serial.read() != '\n') {
+            a = (uint8_t)input;
+            EEPROM_write(0, a); // Пишем вручную
+        }
+        while(Serial.available() > 0) Serial.read();
+    }
+
+    static unsigned long lastTime = 0;
+    if (millis() - lastTime >= 1000) {
+        lastTime = millis();
+
+        PORTB |= (1 << PB5);    
+        asm volatile (
+            "add %0, %1 \n\t"
+            : "=r" (a)
+            : "r" (b), "0" (a)
+        );
+        PORTB &= ~(1 << PB5);   
+
+        Serial.print("Counter: ");
+        Serial.println(a);
+        
+        EEPROM_write(0, a); 
+    }
+}
